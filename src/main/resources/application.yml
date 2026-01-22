@@ -1,21 +1,23 @@
-server:
-  forward-headers-strategy: native
-
 spring:
-  profiles:
-    active: dev
   application:
     name: back
-  config:
-    import: optional:file:.env[.properties]
 
   output:
     ansi:
       enabled: ALWAYS
 
+  datasource:
+    url: jdbc:mysql://localhost:3306/DevCourse?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: root
+    password: lldj123414
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
+    hibernate:
+      ddl-auto: update
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
         show_sql: true
     show-sql: true
@@ -27,42 +29,5 @@ spring:
       max-request-size: 10MB
       file-size-threshold: 2KB
 
-  security:
-    oauth2:
-      client:
-        registration:
-          kakao:
-            client-id: ${SPRING__SECURITY__OAUTH2__CLIENT__REGISTRATION__KAKAO__CLIENT_ID}
-            scope: profile_nickname, profile_image
-            client-name: Kakao
-            authorization-grant-type: authorization_code
-            redirect-uri: '{baseUrl}/{action}/oauth2/code/{registrationId}'
-
-        provider:
-          kakao:
-            authorization-uri: https://kauth.kakao.com/oauth/authorize
-            token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
-            user-name-attribute: id
-
 file:
   upload-dir: ./uploads
-
-# Swagger 설정
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operations-sorter: alpha
-    tags-sorter: alpha
-    display-request-duration: true
-    doc-expansion: none
-  default-consumes-media-type: application/json
-  default-produces-media-type: application/json
-
-custom:
-  jwt:
-    secretKey: abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789
-  accessToken:
-    expirationSeconds: "#{60*20}"
