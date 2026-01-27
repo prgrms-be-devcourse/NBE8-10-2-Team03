@@ -84,3 +84,30 @@ logs:
 
 clean:
 	docker compose down -v
+
+# ----------------------------
+# bid concurrency test
+# ----------------------------
+
+BASE_URL ?= http://host.docker.internal:8080
+AUCTION_ID ?= 1
+SPIKE_VUS ?= 200
+BASE_PRICE ?= 11000
+PRICE_STEP ?= 1
+TOKENS_FILE ?= k6/tokens.txt
+
+tokens:
+	python3 k6/gen_tokens.py --base-url http://localhost:8080 --count 100 --out $(TOKENS_FILE)
+
+bid-spike:
+	docker compose --profile k6 run --rm \
+	  -e BASE_URL="$(BASE_URL)" \
+	  -e AUCTION_ID="$(AUCTION_ID)" \
+	  -e SPIKE_VUS="$(SPIKE_VUS)" \
+	  -e BASE_PRICE="$(BASE_PRICE)" \
+	  -e PRICE_STEP="$(PRICE_STEP)" \
+	  -e TOKENS="$$(cat $(TOKENS_FILE))" \
+	  k6 run /scripts/bid_concurrency.js
+
+bid-spike-300:
+	$(MAKE) bid-spike SPIKE_VUS=300
