@@ -28,6 +28,7 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=15d"
       - "--web.enable-remote-write-receiver"
+      - "--enable-feature=native-histograms"
     ports:
       - "${PROMETHEUS_PORT}:9090"
     volumes:
@@ -47,7 +48,8 @@ services:
       - "${GRAFANA_PORT}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
     depends_on:
       - prometheus
     networks: [perf]
@@ -63,6 +65,7 @@ services:
     environment:
       K6_OUT: experimental-prometheus-rw
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
     depends_on:
       - prometheus
     networks: [perf]
