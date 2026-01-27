@@ -116,3 +116,140 @@ python3 k6/gen_tokens.py \
   --base-url http://host.docker.internal:8080 \
   --count 100 \
   --out k6/tokens.txt
+
+# 공통 규칙(모든 시나리오에 적용)
+## 인증
+- 기본 : Authorization: Bearer {apiKey} {accessToken}
+- 토큰 공급 : k6/data/tokens.txt (한 줄에 apiKey accessToken)
+
+## 판정 PASS/FAIL
+각 시나리오는 느낌이 아니고, 불변조건/수치로 FAIL 출력
+- 정합성 : ex) currentHighestBid == MAX(bids)
+- 안정성 : 오류율(5xx) 증가
+- 성능 : p95/p99 임계치 초과
+- DB : lock wait, slow query 증가
+
+# 테스트 데이터 생성
+## 토큰 생성
+- gen_tokens.py : 회원가입 + 로그인 - 쿠키(apiKey,accessToken) 추출 - tokens.txt 저장
+
+# Google sre 표준 지표 + 추천 지표
+- Google sre 표준 지표 : Latency / Error / Traffic / Saturation
+## Latency - 지연시간
+- p95
+- p99
+
+k6 지표
+- k6_http_req_duration_bucket
+
+grafana 쿼리
+```
+histogram_quantile(
+  0.95,
+  sum(rate(k6_http_req_duration_bucket[1m])) by (le)
+)
+```
+```
+histogram_quantile(
+  0.99,
+  sum(rate(k6_http_req_duration_bucket[1m])) by (le)
+)
+```
+해석 기준
+- p95 < 500ms : ok
+- p99 > 1s : 병목 존재
+- p99 급등 : 락, 커넥션 풀, GC 의심
+
+## Error - 실패율
+- 에러율 %
+- http status 분포
+
+k6 지표
+- k6_http_reqs
+- k6_http_req_failed
+
+grafana 쿼리
+```
+sum(rate(k6_http_req_failed[1m]))
+/
+sum(rate(k6_http_reqs[1m]))
+```
+
+해석 기준
+- 에러율 > 1% - 사용자 불만 존재
+- 에러율, p95 급등이 동시 발생 - 서버 한계 초과
+
+## Traffic - 트래픽
+- RPS. request per second
+- VUS
+
+k6 지표
+- k6_http_reqs
+- k6_vus
+- k6_vus_max
+
+grafana 쿼리 (rps)
+```
+sum(rate(k6_http_reqs[1m]))
+```
+
+해석 기준
+- rps 원인
+- p95/p99 결과
+- rps 증가 - p95 증가 - 에러 증가
+
+## saturation - 포화 상태
+k6가 아니고, 서버/DB 메트릭.
+### cpu
+- process_cpu_usage
+- container_cpu_usage_seconds_total
+
+해석 기준
+- cpu 80% 이상 지속 - scale 필요
+
+### memory/gc
+JVM
+- jvm_memory_used_bytes
+- jvm_gc_pause_seconds_sum
+MySQL
+- mysql_global_status_buffer_pool_pages_free
+
+해석 기준
+- p95 증가 - gc pause 증가 - 메모리 압박
+
+### db connection
+- hikaricp_connections_active
+- hikaricp_connections_pending
+
+해석 기준
+- pending > 0 : 병목
+- 이 상태에서 p99 튀면 DB 문제
+
+## k6 자체 지표
+- http_req_waiting (TTFB)
+- http_req_sending
+- http_req_receiving
+
+해석 기준
+- waiting만 길 때 - 서버/db
+- sending/receiving 길 때 - 네트워크/응답 크기
+
+## 추천 대시보드 세트
+1. RPS
+2. VUs
+3. p95 latency
+4. p99 latency
+5. error rate
+6. CPU usage
+7. DB connection active/pending
+8. GC pause (또는 memory usage)
+
+## 정리
+결과 지표
+- p95
+- p99
+원인 지표
+- rps
+- 에러율
+- cpu
+- db connection
