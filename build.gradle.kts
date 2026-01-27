@@ -52,6 +52,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     // OAuth
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+
+    // 모니터링
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 }
 
 tasks.withType<Test> {
