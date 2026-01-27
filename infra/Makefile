@@ -97,17 +97,35 @@ PRICE_STEP ?= 1
 TOKENS_FILE ?= k6/tokens.txt
 
 tokens:
-	python3 k6/gen_tokens.py --base-url http://localhost:8080 --count 100 --out $(TOKENS_FILE)
+	python3 k6/gen_tokens.py --base-url http://host.docker.internal:8080 --count 100 --out $(TOKENS_FILE)
+
+K6_RESULTS_DIR := k6/results
+TOKENS_FILE   := k6/tokens.txt
 
 bid-spike:
+	@mkdir -p $(K6_RESULTS_DIR)
 	docker compose --profile k6 run --rm \
+	  -v "$(PWD)/$(K6_RESULTS_DIR):/results" \
 	  -e BASE_URL="$(BASE_URL)" \
 	  -e AUCTION_ID="$(AUCTION_ID)" \
 	  -e SPIKE_VUS="$(SPIKE_VUS)" \
 	  -e BASE_PRICE="$(BASE_PRICE)" \
 	  -e PRICE_STEP="$(PRICE_STEP)" \
 	  -e TOKENS="$$(cat $(TOKENS_FILE))" \
-	  k6 run /scripts/bid_concurrency.js
+	  k6 run \
+	  --out experimental-prometheus-rw \
+	  --summary-export=/results/summary.json \
+	  /scripts/bid_concurrency.js
+
 
 bid-spike-300:
 	$(MAKE) bid-spike SPIKE_VUS=300
+
+bid-spike-1000:
+	$(MAKE) bid-spike SPIKE_VUS=1000
+
+bid-spike-10000:
+	$(MAKE) bid-spike SPIKE_VUS=10000
+
+bid-spike-30000:
+	$(MAKE) bid-spike SPIKE_VUS=30000
